@@ -1,7 +1,21 @@
 from random import randint
 from jdatetime import datetime, time, timedelta
+import sqlite3
 
-def formated_string_date(date_obj):
+connection = sqlite3.connect("focuspad.db")
+cursor = connection.cursor()
+
+def startup():
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS days (
+            date TEXT PRIMARY KEY,
+            focus_time INTEGER NOT NULL,
+            goal INTEGER NOT NULL
+        )
+    """)
+    connection.commit()
+
+def formatted_string_date(date_obj):
     day = date_obj.day
     if 4 <= day <= 20 or 24 <= day <= 30:
         suffix = "th"
@@ -22,7 +36,14 @@ def formatted_string_time(minutes):
 
 def get_info(date_obj):
     # Search the database and return : focus_time, goal (in minutes)
-    return randint(50, 70), randint(70, 90)
+    cursor.execute(
+        "SELECT focus_time, goal FROM days WHERE date = ?",
+        (str(date_obj),)
+    )
+
+    result = cursor.fetchone()
+
+    return result
 
 def time_left_til_midnight():
     dt = datetime.now()
@@ -32,3 +53,24 @@ def time_left_til_midnight():
 
 def get_month_length(date_obj):
     return (date_obj.replace(year=date_obj.year + (date_obj.month == 12), month=date_obj.month % 12 + 1, day=1)- timedelta(days=1)).day
+
+def get_all_database():
+    cursor.execute("SELECT * FROM days")
+
+    rows = cursor.fetchall()
+    return rows
+
+def replace_database(data):
+    cursor.execute("DELETE FROM days")
+
+    cursor.executemany(
+        "INSERT INTO days (date, focus_time, goal) VALUES (?, ?, ?)",
+        data
+    )
+
+    connection.commit()
+
+def reset_database():
+    cursor.execute("DELETE FROM days")
+
+    connection.commit()
