@@ -74,3 +74,14 @@ def reset_database():
     cursor.execute("DELETE FROM days")
 
     connection.commit()
+
+def dayEdit(date, newFocus, NewGoal):
+    cursor.execute("""
+        INSERT INTO days (date, focus_time, goal)
+        VALUES (?, ?, ?)
+        ON CONFLICT(date) DO UPDATE SET
+            focus_time = excluded.focus_time,
+            goal = excluded.goal
+    """, (str(date), newFocus, NewGoal))
+
+    connection.commit()

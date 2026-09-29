@@ -1,14 +1,15 @@
 '''
 TODO:
+ - Add georgian date system
  - Add working database
  - Transfer all data from TFT to new database
- - Add date editing and database diting functionality
  - Handle None output from functions.get_info()
  - Add stopwatch functionality
  - Add graph functionality
  - Disable Graph and options to change date when stopwatch is running
  - System tray icon
  - Warning when goal is not reached
+ - Ask for goal of the day on startup (default value in the entry is the same goal from the last day)
 '''
 from PySide6.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar, QFrame, QDialogButtonBox, QComboBox, QSpinBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
 from PySide6.QtCore import Qt, QSize
@@ -42,7 +43,8 @@ class MainWindow(QMainWindow):
         manualDateAction = dateMenu.addAction(qtawesome.icon('fa5s.calendar-alt'), 'Go to...')
         manualDateAction.triggered.connect(self.manualDateSelect)
         editMenu = menubar.addMenu('Edit')
-        editDateAction = editMenu.addAction(qtawesome.icon('mdi.calendar-edit'), 'Edit this date') # Open pop-up and edit data
+        editDateAction = editMenu.addAction(qtawesome.icon('mdi.calendar-edit'), 'Edit this date')
+        editDateAction.triggered.connect(self.editDate)
         editDatabaseAction = editMenu.addAction(qtawesome.icon('mdi.database-edit'), 'View and edit database')
         editDatabaseAction.triggered.connect(self.rawDatabaseEditAction)
         resetDatabaseAction = editMenu.addAction(qtawesome.icon('mdi6.database-sync'), 'Reset database')
@@ -81,14 +83,14 @@ class MainWindow(QMainWindow):
         # Focus time + Goal
         info_container = QWidget()
         info_layout = QHBoxLayout(info_container)
-        sdate_info = functions.get_info(selected_date)
+        self.sdate_info = functions.get_info(selected_date)
         # WARNING Handle None properly
-        if sdate_info == None:
-            sdate_info = (0, 1)
+        if self.sdate_info == None:
+            self.sdate_info = (0, 1)
 
         ftime_container = QWidget()
         ftime_layout = QHBoxLayout(ftime_container)
-        self.ftime_label = QLabel(f"Focus time: {functions.formatted_string_time(sdate_info[0])}")
+        self.ftime_label = QLabel(f"Focus time: {functions.formatted_string_time(self.sdate_info[0])}")
         ftime_icon = QLabel()
         ftime_icon.setPixmap(qtawesome.icon('fa5s.brain').pixmap(QSize(20, 20)))
         ftime_icon.setMaximumSize(QSize(20, 20))
@@ -97,7 +99,7 @@ class MainWindow(QMainWindow):
 
         gtime_container = QWidget()
         gtime_layout = QHBoxLayout(gtime_container)
-        self.gtime_label = QLabel(f"Goal: {functions.formatted_string_time(sdate_info[1])}")
+        self.gtime_label = QLabel(f"Goal: {functions.formatted_string_time(self.sdate_info[1])}")
         gtime_icon = QLabel()
         gtime_icon.setPixmap(qtawesome.icon('fa5s.clock').pixmap(QSize(20, 20)))
         gtime_icon.setMaximumSize(QSize(20, 20))
@@ -109,7 +111,7 @@ class MainWindow(QMainWindow):
 
         # Progress bar
         self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(min(round(100*sdate_info[0]/sdate_info[1]), 100))
+        self.progress_bar.setValue(min(round(100*self.sdate_info[0]/self.sdate_info[1]), 100))
 
         # Remaining info label
         self.re_container = QWidget()
@@ -117,10 +119,10 @@ class MainWindow(QMainWindow):
         re_icon = QLabel()
         re_icon.setPixmap(qtawesome.icon('fa5s.clipboard-check').pixmap(QSize(20, 20)))
         re_icon.setMaximumSize(QSize(20, 20))
-        fc_left = sdate_info[1]-sdate_info[0]
+        fc_left = self.sdate_info[1]-self.sdate_info[0]
         til_midnight = functions.time_left_til_midnight()
         self.remaining_label = QLabel(f'Focus for {functions.formatted_string_time(fc_left)} in the next {functions.formatted_string_time(til_midnight)} to reach the goal of the day. To do so you have to focus for {round(fc_left*60/til_midnight)} minutes per hour.')
-        if sdate_info[0] >= sdate_info[1]:
+        if self.sdate_info[0] >= self.sdate_info[1]:
             self.remaining_label.setText('You have reached your goal. Great job!')
         self.remaining_label.setAlignment(Qt.AlignCenter)
         re_layout.addWidget(re_icon, alignment=Qt.AlignmentFlag.AlignRight)
@@ -159,14 +161,14 @@ class MainWindow(QMainWindow):
     def set_selected_date(self, new_date):
         global selected_date
         selected_date = new_date
-        sdate_info = functions.get_info(selected_date)
+        self.sdate_info = functions.get_info(selected_date)
         # WARNING Handle None properly
-        if sdate_info == None:
-            sdate_info = (0, 1)
+        if self.sdate_info == None:
+            self.sdate_info = (0, 1)
         self.date_formatted_label.setText(functions.formatted_string_date(selected_date))
-        self.ftime_label.setText(f'Focus time: {functions.formatted_string_time(sdate_info[0])}')
-        self.gtime_label.setText(f"Goal: {functions.formatted_string_time(sdate_info[1])}")
-        self.progress_bar.setValue(min(round(100*sdate_info[0]/sdate_info[1]), 100))
+        self.ftime_label.setText(f'Focus time: {functions.formatted_string_time(self.sdate_info[0])}')
+        self.gtime_label.setText(f"Goal: {functions.formatted_string_time(self.sdate_info[1])}")
+        self.progress_bar.setValue(min(round(100*self.sdate_info[0]/self.sdate_info[1]), 100))
         if selected_date == today:
             for w in self.to_show_only_today:
                 w.show()
@@ -179,10 +181,12 @@ class MainWindow(QMainWindow):
 
     def manualDateSelect(self):
         self.gtdwindow = GoToDateWindow(window)
+        self.gtdwindow.setModal(True)
         self.gtdwindow.show()
 
     def rawDatabaseEditAction(self):
         self.rawDatabaseWindow = RawDatabaseEditWindow(window)
+        self.rawDatabaseWindow.setModal(True)
         self.rawDatabaseWindow.show()
 
     def resetDatabase(self):
@@ -193,6 +197,11 @@ class MainWindow(QMainWindow):
         functions.reset_database()
         self.set_selected_date(today)
         QMessageBox.information(self, 'Done!', 'All the data was successfully deleted. Starting fresh!')
+
+    def editDate(self):
+        self.editdatewindow = EditDateWindow(self.sdate_info, parent=window)
+        self.editdatewindow.setModal(True)
+        self.editdatewindow.show()
 
 
 class GoToDateWindow(QDialog):
@@ -339,6 +348,102 @@ class RawDatabaseEditWindow(QDialog):
             self.close()
         except ValueError:
             QMessageBox.critical(self, 'Invalid Data', "Table includes invalid data. Please double check the table and fix any unwanted values or empty cells.")
+
+class EditDateWindow(QDialog):
+    def __init__(self, date_data, parent=None):
+        super().__init__(parent)
+        self.sdate_info = date_data
+        gh, gm = divmod(self.sdate_info[1], 60)
+
+        self.setWindowTitle(f'Edit {functions.formatted_string_date(selected_date).split(', ')[1]}')
+        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+
+        layer = QVBoxLayout(self)
+
+        chooseItem = QComboBox()
+        chooseItem.addItems(['Focus Time', 'Goal'])
+        chooseItem.currentTextChanged.connect(self.onItemChanged)
+
+        self.currentInfoLabel = QLabel(f'Current focused time: {functions.formatted_string_time(self.sdate_info[0])}')
+        self.currentInfoLabel.setAlignment(Qt.AlignCenter)
+
+        # Goal Widgets
+        self.goalContainer = QWidget()
+        self.goalContainer.hide()
+        goalLayer = QHBoxLayout(self.goalContainer)
+
+        goalFirstLabel = QLabel('New goal: ')
+        goalFirstLabel.setAlignment(Qt.AlignCenter)
+        gHour = QSpinBox()
+        gHour.setRange(0, 23)
+        gHour.setValue(gh)
+        gdotLabel = QLabel(':')
+        gdotLabel.setAlignment(Qt.AlignCenter)
+        gdotLabel.setMaximumSize(QSize(10, 10))
+        gMinute = QSpinBox()
+        gMinute.setRange(0, 59)
+        gMinute.setValue(gm)
+        gHour.valueChanged.connect(lambda value: gMinute.setMinimum(1) if value == 0 else gMinute.setMinimum(0))
+
+        goalLayer.addWidget(goalFirstLabel)
+        goalLayer.addWidget(gHour)
+        goalLayer.addWidget(gdotLabel)
+        goalLayer.addWidget(gMinute)
+
+        # Focus time widgets
+        self.focusContainer = QWidget()
+        focusLayer = QHBoxLayout(self.focusContainer)
+
+        asComboBox = QComboBox()
+        asComboBox.addItems(['Add', 'Subtract'])
+        asSpin = QSpinBox()
+        asSpin.setRange(1, 1440 - self.sdate_info[0])
+        asSpin.setValue(15)
+        asComboBox.currentTextChanged.connect(lambda text: asSpin.setMaximum(1440 - self.sdate_info[0]) if text == 'Add' else asSpin.setMaximum(self.sdate_info[0]))
+        focusMinuteLabel = QLabel('minutes')
+        self.newFocusLabel = QLabel(f'New focus time will be {functions.formatted_string_time(self.sdate_info[0] + (-1 if asComboBox.currentIndex() else 1)*asSpin.value())}.')
+        self.newFocusLabel.setAlignment(Qt.AlignCenter)
+        asSpin.valueChanged.connect(lambda value: self.newFocusLabel.setText(f'New focus time will be {functions.formatted_string_time(self.sdate_info[0] + (-1 if asComboBox.currentIndex() else 1)*value)}.'))
+        asComboBox.currentIndexChanged.connect(lambda index: self.newFocusLabel.setText(f'New focus time will be {functions.formatted_string_time(self.sdate_info[0] + (-1 if index else 1)*asSpin.value())}.'))
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save |
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(lambda : self.save_data(chooseItem.currentText(), asComboBox.currentIndex(), asSpin.value(), gHour.value(), gMinute.value()))
+        buttons.rejected.connect(self.close)
+
+        focusLayer.addWidget(asComboBox)
+        focusLayer.addWidget(asSpin)
+        focusLayer.addWidget(focusMinuteLabel)
+
+        layer.addWidget(chooseItem)
+        layer.addWidget(self.currentInfoLabel)
+        layer.addWidget(self.goalContainer)
+        layer.addWidget(self.focusContainer)
+        layer.addWidget(self.newFocusLabel)
+        layer.addWidget(buttons)
+
+    def onItemChanged(self, text):
+        if text == 'Goal':
+            self.currentInfoLabel.setText(f'Current goal: {functions.formatted_string_time(self.sdate_info[1])}')
+            self.goalContainer.show()
+            self.focusContainer.hide()
+            self.newFocusLabel.hide()
+        else:
+            self.currentInfoLabel.setText(f'Current focused time: {functions.formatted_string_time(self.sdate_info[0])}')
+            self.goalContainer.hide()
+            self.focusContainer.show()
+            self.newFocusLabel.show()
+
+    def save_data(self, mode, fmode, fvalue, ghvalue, gmvalue):
+        if mode == 'Goal':
+            functions.dayEdit(selected_date, self.sdate_info[0], ghvalue*60 + gmvalue)
+        else:
+            functions.dayEdit(selected_date, self.sdate_info[0] + (-1 if fmode else 1)*fvalue, self.sdate_info[1])
+
+        window.refresh()
+        self.close()
 
 app = QApplication()
 
