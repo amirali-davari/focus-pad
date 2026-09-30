@@ -2,7 +2,6 @@
 TODO:
  - Add georgian date system
  - Add working database
- - Transfer all data from TFT to new database
  - Handle None output from functions.get_info()
  - Add stopwatch functionality
  - Add graph functionality
@@ -11,7 +10,7 @@ TODO:
  - Warning when goal is not reached
  - Ask for goal of the day on startup (default value in the entry is the same goal from the last day)
 '''
-from PySide6.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar, QFrame, QDialogButtonBox, QComboBox, QSpinBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
+from PySide6.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar, QFrame, QDialogButtonBox, QComboBox, QSpinBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QFileDialog
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
 
@@ -37,18 +36,23 @@ class MainWindow(QMainWindow):
 
         # Menu bar
         menubar = self.menuBar()
+
         dateMenu = menubar.addMenu('Date')
         todayAction = dateMenu.addAction(qtawesome.icon('fa5s.calendar-day'), 'Go to today')
         todayAction.triggered.connect(lambda: self.set_selected_date(today))
         manualDateAction = dateMenu.addAction(qtawesome.icon('fa5s.calendar-alt'), 'Go to...')
         manualDateAction.triggered.connect(self.manualDateSelect)
+
         editMenu = menubar.addMenu('Edit')
         editDateAction = editMenu.addAction(qtawesome.icon('mdi.calendar-edit'), 'Edit this date')
         editDateAction.triggered.connect(self.editDate)
         editDatabaseAction = editMenu.addAction(qtawesome.icon('mdi.database-edit'), 'View and edit database')
         editDatabaseAction.triggered.connect(self.rawDatabaseEditAction)
+        importCSVAction = editMenu.addAction(qtawesome.icon('fa5s.file-import'), 'Import data from CSV file')
+        importCSVAction.triggered.connect(self.importCSV)
         resetDatabaseAction = editMenu.addAction(qtawesome.icon('mdi6.database-sync'), 'Reset database')
         resetDatabaseAction.triggered.connect(self.resetDatabase)
+
         graphMenu = menubar.addMenu('Graph')
         alltimeGraphAction = graphMenu.addAction(qtawesome.icon('fa5s.database'), 'Full graph') # Display matplotlib full time all data graph
         customGraphAction = graphMenu.addAction(qtawesome.icon('msc.graph-line'), 'Custom graph') # Open pop-up for graph settings and display using matplotlib
@@ -180,12 +184,12 @@ class MainWindow(QMainWindow):
         self.set_selected_date(selected_date)
 
     def manualDateSelect(self):
-        self.gtdwindow = GoToDateWindow(window)
+        self.gtdwindow = GoToDateWindow(self)
         self.gtdwindow.setModal(True)
         self.gtdwindow.show()
 
     def rawDatabaseEditAction(self):
-        self.rawDatabaseWindow = RawDatabaseEditWindow(window)
+        self.rawDatabaseWindow = RawDatabaseEditWindow(self)
         self.rawDatabaseWindow.setModal(True)
         self.rawDatabaseWindow.show()
 
@@ -202,6 +206,17 @@ class MainWindow(QMainWindow):
         self.editdatewindow = EditDateWindow(self.sdate_info, parent=window)
         self.editdatewindow.setModal(True)
         self.editdatewindow.show()
+
+    def importCSV(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, 'Select correctly fotmated CSV file.', '', 'CSV Files (*.csv)')
+        if file_path:
+            success, error = functions.importCSV(file_path)
+            if success:
+                QMessageBox.information(self, 'Done!', 'CSV file was imported to your database successfully.')
+            elif error == 'BadHeaderError':
+                QMessageBox.critical(self, 'Error!', 'The CSV file contains unknown headers in the first row. The first row of your CSV file should look like this: "date, focus_time, goal"')
+            elif error == 'ValueError':
+                QMessageBox.critical(self, 'Error!', 'The CSV file contains unexpected values. Please search the CSV file for unwanted values.')
 
 
 class GoToDateWindow(QDialog):
@@ -451,3 +466,4 @@ window = MainWindow()
 window.show()
 
 app.exec()
+functions.connection.close()
