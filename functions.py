@@ -2,6 +2,9 @@ from random import randint
 from jdatetime import datetime, time, timedelta
 import sqlite3
 import csv
+from PySide6.QtCore import QElapsedTimer
+
+from time import sleep
 
 connection = sqlite3.connect("focuspad.db")
 
@@ -116,3 +119,29 @@ def importCSV(file_path):
 
     connection.commit()
     return True, None
+
+class StopwatchLogic:
+    def __init__(self):
+        self.elapsedTimer = QElapsedTimer()
+        self.is_running = False
+        self.time_passed = 0
+
+    def start(self):
+        if not self.is_running:
+            self.is_running = True
+            self.elapsedTimer.start()
+
+    def pause(self):
+        if self.is_running:
+            self.time_passed += self.elapsedTimer.elapsed()
+            self.is_running = False
+
+    def reset(self):
+        self.time_passed = 0
+        self.is_running = False
+
+    def elapsedTime(self):
+        if self.is_running:
+            return (self.time_passed + self.elapsedTimer.elapsed()) / 1000
+        return self.time_passed / 1000
+

@@ -1,8 +1,5 @@
 '''
 TODO:
- - Add stopwatch functionality
- - Add some sort of code that runs on each frame and update stopwatch time, remaining_label, progress_bar and focus time info in each iteration. also it should add stopwatch's time to database every minute and it should also handle times when we get past midnight
- - Disable Graph and options to change date when stopwatch is running
  - Make it possible to edit focus time without having to define goal
  - Add graph functionality
  - System tray icon
@@ -10,7 +7,7 @@ TODO:
  - Add georgian date system
 '''
 from PySide6.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar, QFrame, QDialogButtonBox, QComboBox, QSpinBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QFileDialog
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QIcon
 
 import functions
@@ -29,6 +26,14 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle('Focus Pad')
         self.setWindowIcon(qtawesome.icon('fa5s.book'))
+
+        self.updateTimer = QTimer()
+        self.updateTimer.setInterval(250)
+        self.updateTimer.timeout.connect(self.updateLoop)
+        self.updateTimer.start()
+
+        self.focusStopwatch = functions.StopwatchLogic()
+        self.lastMinuteSaved = 0
 
         self.gtdwindow = None
         self.rawDatabaseWindow = None
@@ -53,8 +58,10 @@ class MainWindow(QMainWindow):
         resetDatabaseAction.triggered.connect(self.resetDatabase)
 
         graphMenu = menubar.addMenu('Graph')
-        alltimeGraphAction = graphMenu.addAction(qtawesome.icon('fa5s.database'), 'Full graph') # Display matplotlib full time all data graph
-        customGraphAction = graphMenu.addAction(qtawesome.icon('msc.graph-line'), 'Custom graph') # Open pop-up for graph settings and display using matplotlib
+        alltimeGraphAction = graphMenu.addAction(qtawesome.icon('fa5s.database'), 'Full graph')
+        alltimeGraphAction.triggered.connect(self.fullGraph)
+        customGraphAction = graphMenu.addAction(qtawesome.icon('msc.graph-line'), 'Custom graph')
+        customGraphAction.triggered.connect(self.customGraph)
 
         # Main layout
         container = QWidget()
@@ -68,19 +75,19 @@ class MainWindow(QMainWindow):
         self.date_formatted_label.setAlignment(Qt.AlignCenter)
         self.date_formatted_label.setStyleSheet("font-size: 20px;")
 
-        pr_button = QPushButton()
-        pr_button.setIcon(qtawesome.icon("fa5s.chevron-left"))
-        pr_button.setMinimumSize(QSize(50, 50))
-        pr_button.setMaximumSize(QSize(50, 50))
-        pr_button.clicked.connect(lambda: self.set_selected_date(selected_date + timedelta(days=-1)))
+        self.pr_button = QPushButton()
+        self.pr_button.setIcon(qtawesome.icon("fa5s.chevron-left"))
+        self.pr_button.setMinimumSize(QSize(50, 50))
+        self.pr_button.setMaximumSize(QSize(50, 50))
+        self.pr_button.clicked.connect(lambda: self.set_selected_date(selected_date + timedelta(days=-1)))
 
-        nx_button = QPushButton()
-        nx_button.setIcon(qtawesome.icon("fa5s.chevron-right"))
-        nx_button.setMinimumSize(QSize(50, 50))
-        nx_button.setMaximumSize(QSize(50, 50))
-        nx_button.clicked.connect(lambda: self.set_selected_date(selected_date + timedelta(days=1)))
+        self.nx_button = QPushButton()
+        self.nx_button.setIcon(qtawesome.icon("fa5s.chevron-right"))
+        self.nx_button.setMinimumSize(QSize(50, 50))
+        self.nx_button.setMaximumSize(QSize(50, 50))
+        self.nx_button.clicked.connect(lambda: self.set_selected_date(selected_date + timedelta(days=1)))
 
-        for w in (pr_button, self.date_formatted_label, nx_button):
+        for w in (self.pr_button, self.date_formatted_label, self.nx_button):
             date_layout.addWidget(w)
 
         # Focus time + Goal
@@ -126,16 +133,15 @@ class MainWindow(QMainWindow):
         re_icon = QLabel()
         re_icon.setPixmap(qtawesome.icon('fa5s.clipboard-check').pixmap(QSize(20, 20)))
         re_icon.setMaximumSize(QSize(20, 20))
-        if self.sdate_info[1] == None:
-            fc_left = 0 # This does not even matter, I'm putting 0 so i don't get errors when doing math calculations with it
-        else:
-            fc_left = self.sdate_info[1]-self.sdate_info[0]
-        til_midnight = functions.time_left_til_midnight()
-        self.remaining_label = QLabel(f'Focus for {functions.formatted_string_time(fc_left)} in the next {functions.formatted_string_time(til_midnight)} to reach the goal of the day. To do so you have to focus for {round(fc_left*60/til_midnight)} minutes per hour.')
+        self.remaining_label = QLabel()
         if self.sdate_info[1] == None:
             self.remaining_label.setText("""Today's goal is not defined yet. Try setting a goal using "Edit this date" action in the menu bar.""")
         elif self.sdate_info[0] >= self.sdate_info[1]:
             self.remaining_label.setText('You have reached your goal. Great job!')
+        else:
+            til_midnight = functions.time_left_til_midnight()
+            fc_left = self.sdate_info[1]-self.sdate_info[0]
+            self.remaining_label.setText(f'Focus for {functions.formatted_string_time(fc_left)} in the next {functions.formatted_string_time(til_midnight)} to reach the goal of the day. To do so you have to focus for {round(fc_left*60/til_midnight)} minutes per hour.')
         self.remaining_label.setAlignment(Qt.AlignCenter)
         re_layout.addWidget(re_icon, alignment=Qt.AlignmentFlag.AlignRight)
         re_layout.addWidget(self.remaining_label)
@@ -146,16 +152,18 @@ class MainWindow(QMainWindow):
         separator.setFrameShadow(QFrame.Shadow.Sunken)
 
         # Stopwatch
-        self.stopwatch_label = QLabel('00:00') # MM:SS --> when MM gets past 60 --> H:MM:SS
+        self.stopwatch_label = QLabel('00:00')
         self.stopwatch_label.setAlignment(Qt.AlignCenter)
         self.stopwatch_label.setStyleSheet("font-size: 50px;")
         stopwatch_controls_container = QWidget()
         stopwatch_controls_layout = QHBoxLayout(stopwatch_controls_container)
-        start_pause_button = QPushButton('Start focusing') # Change icon to 'fa5s.pause' and change text to Pause focusing when it's running
-        start_pause_button.setIcon(qtawesome.icon('fa5s.play'))
+        self.start_pause_button = QPushButton('Start focusing')
+        self.start_pause_button.setIcon(qtawesome.icon('fa5s.play'))
+        self.start_pause_button.clicked.connect(self.sw_startORpause)
         stop_button = QPushButton('Stop focusing')
         stop_button.setIcon(qtawesome.icon('fa5s.stop'))
-        stopwatch_controls_layout.addWidget(start_pause_button)
+        stop_button.clicked.connect(self.sw_stop)
+        stopwatch_controls_layout.addWidget(self.start_pause_button)
         stopwatch_controls_layout.addWidget(stop_button)
         stopwatch_controls_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -214,6 +222,8 @@ class MainWindow(QMainWindow):
             return
         functions.reset_database()
         self.set_selected_date(today)
+        if self.focusStopwatch.is_running:
+            self.sw_stop()
         QMessageBox.information(self, 'Done!', 'All the data was successfully deleted. Starting fresh!')
 
     def editDate(self):
@@ -231,6 +241,79 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, 'Error!', 'The CSV file contains unknown headers in the first row. The first row of your CSV file should look like this: "date, focus_time, goal"')
             elif error == 'ValueError':
                 QMessageBox.critical(self, 'Error!', 'The CSV file contains unexpected values. Please search the CSV file for unwanted values.')
+
+    def updateLoop(self):
+        global today
+        global selected_date
+        if date.today() != today:
+            if selected_date == today:
+                selected_date = date.today()
+            today = date.today()
+            self.set_selected_date(selected_date)
+            if functions.get_info(today) == None:
+                functions.dayEdit(today, 0, functions.get_info(today + timedelta(days=-1))[1])
+
+        if selected_date == today:
+            self.ftime_label.setText(f'Focus time: {functions.formatted_string_time(self.sdate_info[0])}')
+
+            if self.sdate_info[1] == None:
+                self.progress_bar.setValue(0)
+            elif self.sdate_info[1] == 0:
+                self.progress_bar.setValue(100)
+            else:
+                self.progress_bar.setValue(min(round(100*self.sdate_info[0]/self.sdate_info[1]), 100))
+
+            if self.sdate_info[1] == None:
+                self.remaining_label.setText("""Today's goal is not defined yet. Try setting a goal using "Edit this date" action in the menu bar.""")
+            elif self.sdate_info[0] >= self.sdate_info[1]:
+                self.remaining_label.setText('You have reached your goal. Great job!')
+            else:
+                til_midnight = functions.time_left_til_midnight()
+                fc_left = self.sdate_info[1]-self.sdate_info[0]
+                self.remaining_label.setText(f'Focus for {functions.formatted_string_time(fc_left)} in the next {functions.formatted_string_time(til_midnight)} to reach the goal of the day. To do so you have to focus for {round(fc_left*60/til_midnight)} minutes per hour.')
+
+            self.stopwatch_label.setText(str()) # MM:SS --> when MM gets past 60 --> H:MM:SS
+            time_spent = self.focusStopwatch.elapsedTime()
+            m, s = divmod(time_spent, 60)
+            s = min(59, round(s))
+            h, m = divmod(m, 60)
+            h, m = int(h), int(m)
+            if h > 0:
+                self.stopwatch_label.setText(f'{h}:{m if len(str(m)) > 1 else "0"+str(m)}:{s if len(str(s)) > 1 else "0"+str(s)}')
+            else:
+                self.stopwatch_label.setText(f'{m if len(str(m)) > 1 else "0"+str(m)}:{s if len(str(s)) > 1 else "0"+str(s)}')
+
+            if h*60 + m > self.lastMinuteSaved:
+                functions.dayEdit(selected_date, ((h*60 + m) - self.lastMinuteSaved) + self.sdate_info[0], self.sdate_info[1])
+                self.sdate_info = functions.get_info(selected_date)
+                self.lastMinuteSaved = h*60 + m
+
+
+    def sw_startORpause(self):
+        if self.sdate_info[1] == None:
+            QMessageBox.critical(self, 'Error!', 'You can not change your focus time data while goal is undefined. Try setting a goal first.')
+            return
+        if self.focusStopwatch.is_running:
+            self.focusStopwatch.pause()
+            self.start_pause_button.setText('Continue focusing')
+            self.start_pause_button.setIcon(qtawesome.icon('fa5s.play'))
+        else:
+            self.focusStopwatch.start()
+            self.start_pause_button.setText('Pause focusing')
+            self.start_pause_button.setIcon(qtawesome.icon('fa5s.pause'))
+
+    def sw_stop(self):
+        self.focusStopwatch.reset()
+        self.start_pause_button.setText('Start focusing')
+        self.start_pause_button.setIcon(qtawesome.icon('fa5s.play'))
+        self.stopwatch_label.setText('00:00')
+        self.lastMinuteSaved = 0
+
+    def fullGraph(self):
+        QMessageBox.information(self, 'Not implemented', 'This feature is not implemented yet!')
+
+    def customGraph(self):
+        QMessageBox.information(self, 'Not implemented', 'This feature is not implemented yet!')
 
 
 class GoToDateWindow(QDialog):
@@ -473,7 +556,7 @@ class EditDateWindow(QDialog):
             functions.dayEdit(selected_date, self.sdate_info[0], ghvalue*60 + gmvalue)
         else:
             if self.sdate_info[1] == None:
-                QMessageBox.critical(self, 'Error!', 'You can change your focus time data while goal is undefined. Try setting a goal first.')
+                QMessageBox.critical(self, 'Error!', 'You can not change your focus time data while goal is undefined. Try setting a goal first.')
                 return
             functions.dayEdit(selected_date, self.sdate_info[0] + (-1 if fmode else 1)*fvalue, self.sdate_info[1])
 
@@ -495,7 +578,7 @@ class StartupGoalDefine(QDialog):
         goalContainer = QWidget()
         goalLayer = QHBoxLayout(goalContainer)
 
-        goalFirstLabel = QLabel('New goal: ')
+        goalFirstLabel = QLabel("Today's goal: ")
         goalFirstLabel.setAlignment(Qt.AlignCenter)
         gHour = QSpinBox()
         gHour.setValue(1)
@@ -519,6 +602,7 @@ class StartupGoalDefine(QDialog):
         dialog_buttons.accepted.connect(lambda: self.ok(gHour.value()*60+gMinute.value()))
         dialog_buttons.rejected.connect(self.close)
 
+        layer.addWidget(beginLabel)
         layer.addWidget(goalContainer)
         layer.addWidget(dialog_buttons)
 
