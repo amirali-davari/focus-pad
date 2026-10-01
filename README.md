@@ -63,7 +63,7 @@ python3 -m pip install -r requirements.txt
 python3 main.py
 ```
 
-###### Windows:
+##### Windows:
 
 1. You need to have Python installed on your machine. You can install Python from [Python's official website](https://www.python.org/).
 
