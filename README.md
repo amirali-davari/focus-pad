@@ -10,7 +10,7 @@ Simple GUI application used to keep track of hours spent focusing/studying. Writ
 
 - [ ] Make it possible to edit focused time when goal is undefined
 
-- [ ] Add graph functionality
+- [ ] Make the matplotlib graph part of my own window to allow real time graph customization with my own tool bar + matplotlib toolbar
 
 - [ ] Make the app go to system tray when closed
 
@@ -23,6 +23,10 @@ Simple GUI application used to keep track of hours spent focusing/studying. Writ
 - [ ] Add gregorian date system support
 
 - [ ] Release the first version of the app for Linux & Windows
+
+## Completed items:
+
+- [x] ~~Add graph functionality~~
 
 ---
 

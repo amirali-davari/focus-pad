@@ -6,7 +6,7 @@ TODO:
  - Warning when goal is not reached
  - Add georgian date system
 '''
-from PySide6.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar, QFrame, QDialogButtonBox, QComboBox, QSpinBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QFileDialog
+from PySide6.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar, QFrame, QDialogButtonBox, QComboBox, QSpinBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QFileDialog, QCheckBox
 from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QIcon
 
@@ -37,6 +37,7 @@ class MainWindow(QMainWindow):
 
         self.gtdwindow = None
         self.rawDatabaseWindow = None
+        self.customGraphWindow = None
 
         # Menu bar
         menubar = self.menuBar()
@@ -310,10 +311,12 @@ class MainWindow(QMainWindow):
         self.lastMinuteSaved = 0
 
     def fullGraph(self):
-        QMessageBox.information(self, 'Not implemented', 'This feature is not implemented yet!')
+        functions.display_graph()
 
     def customGraph(self):
-        QMessageBox.information(self, 'Not implemented', 'This feature is not implemented yet!')
+        self.customGraphWindow = CustomGraphConfig(self)
+        self.customGraphWindow.setModal(True)
+        self.customGraphWindow.show()
 
 
 class GoToDateWindow(QDialog):
@@ -608,6 +611,88 @@ class StartupGoalDefine(QDialog):
 
     def ok(self, g):
         functions.dayEdit(today, 0, g)
+        self.close()
+
+class CustomGraphConfig(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle('Custom Graph Configuration')
+        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+
+        layer = QVBoxLayout(self)
+
+        beginLabel = QLabel("Configure your graph using the options below.\nSelect starting date:")
+        beginLabel.setAlignment(Qt.AlignCenter)
+
+        start_container = QWidget()
+        start_layout = QHBoxLayout(start_container)
+
+        first_date = functions.get_first_date()
+
+        syear = QSpinBox()
+        syear.setRange(1000, 9999)
+        syear.setValue(first_date[0])
+        smonth = QComboBox()
+        smonth.addItems([date(1388, month, 24).strftime("%B") for month in range(1, 13)])
+        smonth.setCurrentIndex(first_date[1] - 1)
+        sday = QSpinBox()
+        sday.setRange(1, functions.get_month_length(today))
+        sday.setValue(first_date[2])
+        smonth.currentIndexChanged.connect(lambda index:sday.setMaximum(functions.get_month_length(date(year=syear.value(), month=index+1, day=24))))
+        syear.valueChanged.connect(lambda value:sday.setMaximum(functions.get_month_length(date(year=value, month=smonth.currentIndex()+1, day=24))))
+
+        start_layout.addWidget(syear)
+        start_layout.addWidget(smonth)
+        start_layout.addWidget(sday)
+
+        endLabel = QLabel("Select last date:")
+        endLabel.setAlignment(Qt.AlignCenter)
+
+        end_container = QWidget()
+        end_layout = QHBoxLayout(end_container)
+
+        eyear = QSpinBox()
+        eyear.setRange(1000, 9999)
+        eyear.setValue(today.year)
+        emonth = QComboBox()
+        emonth.addItems([date(1388, month, 24).strftime("%B") for month in range(1, 13)])
+        emonth.setCurrentIndex(today.month - 1)
+        eday = QSpinBox()
+        eday.setRange(1, functions.get_month_length(today))
+        eday.setValue(today.day)
+        emonth.currentIndexChanged.connect(lambda index:eday.setMaximum(functions.get_month_length(date(year=eyear.value(), month=index+1, day=24))))
+        eyear.valueChanged.connect(lambda value:eday.setMaximum(functions.get_month_length(date(year=value, month=emonth.currentIndex()+1, day=24))))
+
+        end_layout.addWidget(eyear)
+        end_layout.addWidget(emonth)
+        end_layout.addWidget(eday)
+
+        checkbox_container = QWidget()
+        checkbox_layout = QHBoxLayout(checkbox_container)
+        focus_checkbox = QCheckBox('Focus Time')
+        goal_checkbox = QCheckBox('Goal')
+        average_checkbox = QCheckBox('Week average focus time')
+        for checkbox in (focus_checkbox, goal_checkbox, average_checkbox):
+            checkbox.setChecked(True)
+            checkbox_layout.addWidget(checkbox)
+
+        dialog_buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        dialog_buttons.accepted.connect(lambda: self.ok(f'{syear.value()}-{smonth.currentIndex() + 1}-{sday.value()}', f'{eyear.value()}-{emonth.currentIndex() + 1}-{eday.value()}', focus_checkbox.isChecked(), goal_checkbox.isChecked(), average_checkbox.isChecked()))
+        dialog_buttons.rejected.connect(self.close)
+
+        layer.addWidget(beginLabel)
+        layer.addWidget(start_container)
+        layer.addWidget(endLabel)
+        layer.addWidget(end_container)
+        layer.addWidget(checkbox_container)
+        layer.addWidget(dialog_buttons)
+
+    def ok(self, *args):
+        functions.display_graph(*args)
         self.close()
 
 app = QApplication()

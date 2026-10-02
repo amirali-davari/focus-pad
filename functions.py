@@ -1,10 +1,11 @@
 from random import randint
-from jdatetime import datetime, time, timedelta
+from jdatetime import datetime, time, timedelta, date
 import sqlite3
 import csv
 from PySide6.QtCore import QElapsedTimer
-
-from time import sleep
+import matplotlib
+matplotlib.use('QtAgg')
+import matplotlib.pyplot as plt
 
 connection = sqlite3.connect("focuspad.db")
 
@@ -145,3 +146,78 @@ class StopwatchLogic:
             return (self.time_passed + self.elapsedTimer.elapsed()) / 1000
         return self.time_passed / 1000
 
+def display_graph(start_date=None, end_date=None, show_focus=True, show_goal=True, show_week_average=True):
+    data = get_all_database()
+    data = sorted(data, key=lambda x: x[0])
+
+    if start_date == None:
+        start_date = data[0][0]
+    if end_date == None:
+        end_date = data[-1][0]
+    start_date = date(*[int(i) for i in start_date.split('-')])
+    end_date = date(*[int(i) for i in end_date.split('-')])
+
+    data = {i[0]:[i[1], i[2]] for i in data} # Turn the data into dict
+
+    x_index = []
+    x_labels = []
+    y_focus = []
+    y_goal = []
+    y_average = []
+
+    i = -1
+    working_day = None
+    while working_day != end_date:
+        i += 1
+        working_day = start_date + timedelta(days=i)
+
+        x_index.append(i)
+        x_labels.append(str(working_day))
+
+        if show_focus:
+            if str(working_day) in data:
+                y_focus.append(data[str(working_day)][0])
+            else:
+                y_focus.append(0)
+        if show_goal:
+            if str(working_day) in data:
+                y_goal.append(data[str(working_day)][1])
+            else:
+                y_goal.append(None)
+        if show_week_average:
+            if len(y_focus) > 6:
+                y_average.append(sum(y_focus[-7:])/7)
+            else:
+                last_7_data = []
+                for j in range(0, -7, -1):
+                    _w = working_day + timedelta(days=j)
+                    if str(_w) in data:
+                        last_7_data.append(data[str(_w)][0])
+                    else:
+                        last_7_data.append(0)
+                y_average.append(sum(last_7_data)/7)
+
+    fig, ax = plt.subplots()
+
+    if show_focus:
+        ax.plot(x_index, y_focus, label="Focus Time", color="blue")
+    if show_goal:
+        ax.plot(x_index, y_goal, label="Goal", color="red")
+    if show_week_average:
+        ax.plot(x_index, y_average, label="Last 7 days average", color="orange")
+
+    ax.set_xticks(x_index)
+    ax.set_xticklabels(x_labels)
+
+    ax.set_title("Focus Pad Graph Analysis")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Value (Minutes)")
+
+    plt.xticks(rotation=45)
+    plt.subplots_adjust(bottom=0.2)
+
+    ax.legend()
+    plt.show()
+
+def get_first_date():
+    return [int(i) for i in sorted(get_all_database(), key=lambda x: x[0])[0][0].split('-')] # I'm so smart i did it in one line :D
