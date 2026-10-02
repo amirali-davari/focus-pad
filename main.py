@@ -311,12 +311,18 @@ class MainWindow(QMainWindow):
         self.lastMinuteSaved = 0
 
     def fullGraph(self):
-        functions.display_graph()
+        if functions.is_database_empty():
+            QMessageBox.warning(self, 'Empty database', 'There is no data to display on the graph!')
+        else:
+            functions.display_graph()
 
     def customGraph(self):
-        self.customGraphWindow = CustomGraphConfig(self)
-        self.customGraphWindow.setModal(True)
-        self.customGraphWindow.show()
+        if functions.is_database_empty():
+            QMessageBox.warning(self, 'Empty database', 'There is no data to display on the graph!')
+        else:
+            self.customGraphWindow = CustomGraphConfig(self)
+            self.customGraphWindow.setModal(True)
+            self.customGraphWindow.show()
 
 
 class GoToDateWindow(QDialog):

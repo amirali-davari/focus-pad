@@ -3,8 +3,6 @@ from jdatetime import datetime, time, timedelta, date
 import sqlite3
 import csv
 from PySide6.QtCore import QElapsedTimer
-import matplotlib
-matplotlib.use('QtAgg')
 import matplotlib.pyplot as plt
 
 connection = sqlite3.connect("focuspad.db")
@@ -221,3 +219,8 @@ def display_graph(start_date=None, end_date=None, show_focus=True, show_goal=Tru
 
 def get_first_date():
     return [int(i) for i in sorted(get_all_database(), key=lambda x: x[0])[0][0].split('-')] # I'm so smart i did it in one line :D
+
+def is_database_empty():
+    cursor = connection.cursor()
+    has_rows = cursor.execute("SELECT EXISTS(SELECT 1 FROM days)").fetchone()[0]
+    return not has_rows
