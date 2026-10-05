@@ -20,6 +20,8 @@ Simple GUI application used to keep track of hours spent focusing/studying. Writ
 
 - [ ] Add To-Do list to the app
 
+- [ ] Add a feature to make app block other apps for some amount of time
+
 - [ ] Add gregorian date system support
 
 - [ ] Release the first version of the app for Linux & Windows

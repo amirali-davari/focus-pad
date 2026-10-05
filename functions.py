@@ -145,6 +145,9 @@ class StopwatchLogic:
         return self.time_passed / 1000
 
 def display_graph(start_date=None, end_date=None, show_focus=True, show_goal=True, show_week_average=True):
+    if sorted((start_date, end_date))[0] != start_date:
+        start_date, end_date = end_date, start_date
+
     data = get_all_database()
     data = sorted(data, key=lambda x: x[0])
 
