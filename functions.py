@@ -220,8 +220,10 @@ def display_graph(start_date=None, end_date=None, show_focus=True, show_goal=Tru
     ax.legend()
     plt.show()
 
-def get_first_date():
-    return [int(i) for i in sorted(get_all_database(), key=lambda x: x[0])[0][0].split('-')] # I'm so smart i did it in one line :D
+def get_first_last_date():
+    data = sorted(get_all_database(), key=lambda x: x[0])
+    first, last = data[0][0], data[-1][0]
+    return [int(i) for i in first.split('-')], [int(i) for i in last.split('-')]
 
 def is_database_empty():
     cursor = connection.cursor()
