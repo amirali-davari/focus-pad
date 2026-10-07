@@ -4,8 +4,17 @@ import sqlite3
 import csv
 from PySide6.QtCore import QElapsedTimer
 import matplotlib.pyplot as plt
+from pathlib import Path
+import sys
 
-connection = sqlite3.connect("focuspad.db")
+if getattr(sys, "frozen", False):
+    APP_DIR = Path(sys.executable).parent
+else:
+    APP_DIR = Path(__file__).resolve().parent
+
+DB_PATH = APP_DIR / "focuspad.db"
+
+connection = sqlite3.connect(DB_PATH)
 
 def startup():
     cursor = connection.cursor()

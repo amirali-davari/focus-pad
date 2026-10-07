@@ -1,11 +1,3 @@
-'''
-TODO:
- - Make it possible to edit focus time without having to define goal
- - Add graph functionality
- - System tray icon
- - Warning when goal is not reached
- - Add georgian date system
-'''
 from PySide6.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar, QFrame, QDialogButtonBox, QComboBox, QSpinBox, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QFileDialog, QCheckBox
 from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QIcon
@@ -25,7 +17,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle('Focus Pad')
-        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+        self.setWindowIcon(QIcon(str(functions.APP_DIR / '_internal' / 'assets' / 'icon.ico')))
 
         self.updateTimer = QTimer()
         self.updateTimer.setInterval(250)
@@ -330,7 +322,7 @@ class GoToDateWindow(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle('Go to custom date')
-        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+        self.setWindowIcon(QIcon(str(functions.APP_DIR / '_internal' / 'assets' / 'icon.ico')))
         self.setFixedSize(350, 150)
 
         layout = QVBoxLayout(self)
@@ -377,7 +369,7 @@ class RawDatabaseEditWindow(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle('View and edit database')
-        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+        self.setWindowIcon(QIcon(str(functions.APP_DIR / '_internal' / 'assets' / 'icon.ico')))
         self.setMinimumSize(800, 500)
 
         layout = QVBoxLayout(self)
@@ -480,7 +472,7 @@ class EditDateWindow(QDialog):
             gh, gm = divmod(self.sdate_info[1], 60)
 
         self.setWindowTitle(f'Edit {functions.formatted_string_date(selected_date).split(', ')[1]}')
-        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+        self.setWindowIcon(QIcon(str(functions.APP_DIR / '_internal' / 'assets' / 'icon.ico')))
 
         layer = QVBoxLayout(self)
 
@@ -577,7 +569,7 @@ class StartupGoalDefine(QDialog):
         super().__init__()
 
         self.setWindowTitle('Set goal')
-        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+        self.setWindowIcon(QIcon(str(functions.APP_DIR / '_internal' / 'assets' / 'icon.ico')))
 
         layer = QVBoxLayout(self)
 
@@ -624,7 +616,7 @@ class CustomGraphConfig(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle('Custom Graph Configuration')
-        self.setWindowIcon(qtawesome.icon('fa5s.book'))
+        self.setWindowIcon(QIcon(str(functions.APP_DIR / '_internal' / 'assets' / 'icon.ico')))
 
         layer = QVBoxLayout(self)
 

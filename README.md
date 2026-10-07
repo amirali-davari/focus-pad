@@ -4,7 +4,17 @@ Simple GUI application used to keep track of hours spent focusing/studying. Writ
 
 ---
 
-##### This project is in its early stages of development. Installation files are yet to be released.
+## Installation
+
+Linux & Windows:
+
+1. Download the binary release file from release page.
+
+2. Extract the file.
+
+3. Start the app by opening the file named "Focus Pad". (Or "Focus Pad.exe" on Windows)
+
+--- 
 
 ## To-Do list:
 
@@ -24,17 +34,16 @@ Simple GUI application used to keep track of hours spent focusing/studying. Writ
 
 - [ ] Add gregorian date system support
 
-- [ ] Release the first version of the app for Linux & Windows
-
 ## Completed items:
 
 - [x] ~~Add graph functionality~~
+- [x] ~~Release the first version of the app for Linux & Windows~~
 
 ---
 
-## Installation
+## Running using code
 
-Release files have not been added yet. If you want to try the app before its first release follow the instructions below.
+Release files are availible for an easy installation. Use this method of installation only if you want to modify or study the code.
 
 ##### Linux:
 
