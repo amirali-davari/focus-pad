@@ -8,7 +8,7 @@ Simple GUI application used to keep track of hours spent focusing/studying. Writ
 
 Linux & Windows:
 
-1. Download the binary release file from release page.
+1. Download the binary release file from the [release page](https://github.com/amirali-davari/focus-pad/releases).
 
 2. Extract the file.
 
